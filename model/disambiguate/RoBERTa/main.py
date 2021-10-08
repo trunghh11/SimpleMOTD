@@ -135,13 +135,26 @@ def evaluate(args=None, model=None, dev_dataloader=None, eval_masker=None, test=
 
     model = get_model(args, model)
     for step, batch in enumerate(tqdm(dev_dataloader, desc="Evaluate : ", leave=False)):
+
         inputs = convert_batch_to_inputs(args=args, batch=batch, masker=eval_masker)
         if not (args.mode == 'post' or args.mode=='fine'):    
             del inputs['args']
             del inputs['masked_lm_labels']
             
         with torch.no_grad():
-            if args.voting_models is not None:
+            if args.voting_models is not None and \
+               args.fashion_model_name_or_path is not None and\
+               args.furniture_model_name_or_path is not None:
+                outputs = list()            
+                for key in model.keys():
+                    domain = batch[3].tolist()[0]                    
+                    if key == 2:
+                        for num in range(len(args.voting_models)):
+                            outputs.append(model[key][num](**inputs)[1])
+                    elif key == domain:
+                        outputs.append(model[key](**inputs)[1])
+
+            elif args.voting_models is not None:
                 outputs = list()
                 for num in range(len(args.voting_models)):
                     outputs.append(model[num](**inputs)[1])
@@ -152,7 +165,6 @@ def evaluate(args=None, model=None, dev_dataloader=None, eval_masker=None, test=
                 outputs = model[domain](**inputs)
             else:
                 outputs = model(**inputs)
-
 
         if args.mode == 'post': eval_loss += outputs[0].mean().item()
         elif not args.submission:
@@ -174,12 +186,38 @@ def evaluate(args=None, model=None, dev_dataloader=None, eval_masker=None, test=
             labels_list.extend(l.item() for l in inputs['labels'])
 
         elif args.submission:
+            if args.voting_models is not None:
+                outputs = torch.stack(outputs, dim=1)
+                preds = torch.argmax(torch.tensor(outputs[0]), dim=1).flatten()
+                preds = preds.detach().cpu().numpy().tolist()
+                zero = preds.count(0)
+                one  = preds.count(1)
+                # if not one == len(args.voting_models) and not zero == len(args.voting_models):
+                #     print("0 : {} / 1 : {} / 다름 : {}".format(zero, one, preds))
+                if one > zero:      preds_list.append(1)            
+                elif one < zero:    preds_list.append(0)            
+                elif one == zero:    
+                    print("Preds : {}".format(preds))
+                    print("Zero : {}".format(zero))
+                    print("One : {}".format(one))
+
+                    print("예외 발생")            
+            else:
                 preds = torch.argmax(outputs[1], dim=1).flatten()
-                dialog_id = batch[4].detach().cpu().numpy().tolist()[0]
-                turn_id = batch[5].detach().cpu().numpy().tolist()[0]
                 preds_list.extend(p.item() for p in preds)            
-                dialog_ids.append(dialog_id)
-                turn_ids.append(turn_id)
+            dialog_id = batch[4].detach().cpu().numpy().tolist()[0]
+            turn_id = batch[5].detach().cpu().numpy().tolist()[0]                
+            dialog_ids.append(dialog_id)
+            turn_ids.append(turn_id)
+        if not len(preds_list) == len(dialog_ids):
+
+            import sys
+            sys.exit()
+        print("\n{} step / len : {}".format(step, len(outputs)))
+        print("{} step / preds_list : {}".format(step, len(preds_list)))
+        print("{} step / dialog_ids : {}".format(step, len(dialog_ids)))
+        print("{} step / turn_ids : {}".format(step, len(turn_ids)))
+
         # if step > 10: break
 
 

@@ -216,6 +216,31 @@ def get_model(args, model):
     config.num_labels = 2
 
     if not args.do_train and\
+        args.voting_models is not None and\
+        args.fashion_model_name_or_path is not None and\
+        args.furniture_model_name_or_path is not None:
+        model = {0:None, 1:None, 2:list()}
+
+        for path in args.voting_models:                     model[2].append(MODEL_CLASSES['fine'].from_pretrained(pretrained_model_name_or_path=args.model, config=config))
+
+        fashion_model = MODEL_CLASSES['fine'].from_pretrained(pretrained_model_name_or_path=args.model, config=config)
+        furniture_model = MODEL_CLASSES['fine'].from_pretrained(pretrained_model_name_or_path=args.model, config=config)
+
+        for num in range(len(args.voting_models)):          model[2][num].resize_token_embeddings(len(tokenizer))
+        fashion_model.resize_token_embeddings(len(tokenizer))
+        furniture_model.resize_token_embeddings(len(tokenizer))
+
+        for num,path in enumerate(args.voting_models):      model[2][num] = model[2][num].from_pretrained(pretrained_model_name_or_path=path + "/best_model.bin", config=config)
+        fashion_model = fashion_model.from_pretrained(pretrained_model_name_or_path=args.fashion_model_name_or_path + "/best_model.bin", config=config)
+        furniture_model = furniture_model.from_pretrained(pretrained_model_name_or_path=args.furniture_model_name_or_path + "/best_model.bin", config=config)
+
+        for num in range(len(args.voting_models)):          model[2][num].to(args.device)
+        model[0] = fashion_model.to(args.device)
+        model[1] = furniture_model.to(args.device)        
+
+        return model.copy()
+
+    if not args.do_train and\
         args.voting_models is not None:
         model = list()
         for path in args.voting_models:                     model.append(MODEL_CLASSES['fine'].from_pretrained(pretrained_model_name_or_path=args.model, config=config))
