@@ -5,7 +5,7 @@ The repository to participate the DSTC10 Track 3
 Model Parameters are shared by Google Drive.
 
 How to download & place.
-1. Download Link: 
+1. Download Link: https://drive.google.com/file/d/1BLVi4_3yCyh-815M7MQ-cc-zKcqCAKGF/view?usp=sharing
 2. Unzip in following directory:
   disambiguation/RoBERTa/save_model/
   
