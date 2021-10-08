@@ -1,7 +1,15 @@
 # SKKU_SIMMC2.0
 The repository to participate the DSTC10 Track 3
 
-## Model Parameters
+## Model Parameters for subtask 1
+Model Parameters are shared by Google Drive.
+
+How to download & place.
+1. Download Link: 
+2. Unzip in following directory:
+  disambiguation/RoBERTa/save_model/
+  
+## Model Parameters for subtask 2, 3, 4
 Model Parameters are shared by Google Drive.
 
 How to download & place.
