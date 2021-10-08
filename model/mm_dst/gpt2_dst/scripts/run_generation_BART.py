@@ -309,6 +309,12 @@ command line""",
         with open(args.prompts_from_file) as handle:
             prompts = handle.readlines()
 
+    # print("\ntokenizer : {}".format(len(tokenizer)))
+    # for token, ids in tokenizer.vocab.items():
+    #     if ids >= 50260:
+    #         print("{} : {}".format(token, ids))
+    # import sys
+    # sys.exit()
     while True:
         if not prompts:
             prompts = [args.prompt if args.prompt else input("Model prompt >>> ")]
@@ -341,6 +347,7 @@ command line""",
                     preprocessed_prompt_text,
                     add_special_tokens=True,
                     return_tensors="pt",
+                    max_length=tokenizer.model_max_length,
                     add_space_before_punct_symbol=True,
                 )
             else:
@@ -349,11 +356,15 @@ command line""",
                 #     prompt_text, add_special_tokens=True, return_tensors="pt"
                 # )
                 encoded_prompt = tokenizer(
-                    [prompt_text], add_special_tokens=True)
+                    [prompt_text], 
+                    max_length=tokenizer.model_max_length,                    
+                    add_special_tokens=True)
             src = torch.tensor(encoded_prompt.input_ids).to(args.device)
             src_mask = torch.tensor(encoded_prompt.attention_mask).to(args.device)
-
-            # print("\nSRC : {} {}".format(src.size(), src))
+            # if i > 515:
+            #     # print("Max len : {}".format(tokenizer.model_max_length))
+            #     # print("SRC : {}".format(encoded_prompt.input_ids))
+            #     print("\nSRC : {}".format(src.size()))
             try:
                 output_sequences = model.generate(
                     src,

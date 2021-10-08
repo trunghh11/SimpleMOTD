@@ -12,6 +12,8 @@ root directory of this source tree.
     DST model baseline.
 """
 import json
+import gzip
+import pickle
 import re
 import os
 from glob import glob
@@ -52,7 +54,7 @@ def object_id_to_meta(objects, meta_data):
 
         meta = list()
         for key, value in meta_data[int(obj)].items():
-            meta.append("{}:{}".format(key,value))
+            meta.append(str(value))
 
         # color:red, pattern:stripped, type:skirt
         meta = (", ").join(meta)
@@ -113,7 +115,7 @@ def convert_json_to_flattened(
         oov = set()
 
 
-    scene_paths = glob("../data/simmc2_scene_jsons_dstc10_public/*_scene.json")
+    scene_paths = glob("../data/simmc2_scene_images_dstc10_teststd/*_scene.json")
      
     with open("../data/fashion_prefab_metadata_all.json", mode="r") as inp:
         mata_fashion = json.load(inp)
@@ -122,19 +124,23 @@ def convert_json_to_flattened(
     with open("../data/furniture_prefab_metadata_all.json", mode="r") as inp:
         meta_furniture = json.load(inp)
 
-    with open("../data/visual_meta_data_predicted.json", mode="r") as inp:
-        visual_meta = json.load(inp)
+    # with open("../data/visual_meta_data_predicted.json", mode="r") as inp:
+    with gzip.open("../data/object_teststd.pickle", mode="r") as inp:
+        visual_meta = pickle.load(inp)
 
     for _, dialog in enumerate(data):
         # 현재 대화에 필요한 meta data 저장 완료
         domain = dialog['domain']
         scene_ids = [scene_id for scene_id in dialog['scene_ids'].values()]        
-        scene_path = [path for path in scene_paths for ids in scene_ids if ids in path]
+        # scene_path = [path for path in scene_paths for ids in scene_ids if ids in path]
+        scene_path = scene_ids
         # visual + non visual 위치
 
         meta_data = dict()
+
         for s_path in scene_path:
             s_name = s_path.split("/")[-1].rstrip("_scene.json")
+            s_path = "../data/simmc2_scene_jsons_dstc10_teststd/" + s_name +"_scene.json"
             with open(s_path, mode="r") as inp:
                 data = json.load(inp)['scenes'][0]['objects']
                 for obj in data:
@@ -143,27 +149,32 @@ def convert_json_to_flattened(
 
                     meta_data[obj_idx] = dict()
                     if domain == 'fashion': 
-                        sorce_meta = mata_fashion
-                        meta_data[obj_idx]['customerReview'] = sorce_meta[obj_name]['customerReview']
-                        meta_data[obj_idx]['brand'] = sorce_meta[obj_name]['brand']
-                        meta_data[obj_idx]['size'] = sorce_meta[obj_name]['size']
-                        meta_data[obj_idx]['price'] = sorce_meta[obj_name]['price']
-                        meta_data[obj_idx]['availableSizes'] = sorce_meta[obj_name]['availableSizes']
-                        if len(visual_meta[s_name][str(obj_idx)]) > 0:
-                            meta_data[obj_idx]['type'] = visual_meta[s_name][str(obj_idx)][0]   # Fashion
-                            meta_data[obj_idx]['pattern'] = visual_meta[s_name][str(obj_idx)][1]                 
-                            meta_data[obj_idx]['color'] = visual_meta[s_name][str(obj_idx)][2]
+                        source_meta = mata_fashion
+                        meta_data[obj_idx]['customerReview'] = source_meta[obj_name]['customerReview']
+                        meta_data[obj_idx]['brand'] = source_meta[obj_name]['brand']
+                        meta_data[obj_idx]['size'] = source_meta[obj_name]['size']
+                        meta_data[obj_idx]['price'] = source_meta[obj_name]['price']
+                        meta_data[obj_idx]['availableSizes'] = source_meta[obj_name]['availableSizes']
 
+                        # print('\n\ns_name : {}'.format(s_name))
+                        # print('\n\nobj_idx : {} {}'.format(obj_idx, type(obj_idx)))
+                        # print('\n\nvisual_meta[s_name] : {} {}'.format(visual_meta[s_name], type(visual_meta[s_name])))
+                        # print('\n\nvisual_meta[s_name][obj_idx] : {} {}'.format(visual_meta[s_name][obj_idx], type(visual_meta[s_name][obj_idx])))
+
+                        if len(visual_meta[s_name][obj_idx]) > 0:
+                            meta_data[obj_idx]['type'] = visual_meta[s_name][obj_idx][0]   # Fashion
+                            meta_data[obj_idx]['pattern'] = visual_meta[s_name][obj_idx][1]                 
+                            meta_data[obj_idx]['color'] = visual_meta[s_name][obj_idx][2]
 
                     else:                   
-                        sorce_meta = meta_furniture
-                        meta_data[obj_idx]['customerRating'] = sorce_meta[obj_name]['customerRating']                        
-                        meta_data[obj_idx]['brand'] = sorce_meta[obj_name]['brand']                        
-                        meta_data[obj_idx]['price'] = sorce_meta[obj_name]['price']
-                        if len(visual_meta[s_name][str(obj_idx)]) > 0:                        
-                            meta_data[obj_idx]['type'] = visual_meta[s_name][str(obj_idx)][0]   # Furniture
-                            meta_data[obj_idx]['materials'] = visual_meta[s_name][str(obj_idx)][1]
-                            meta_data[obj_idx]['color'] = visual_meta[s_name][str(obj_idx)][2]
+                        source_meta = meta_furniture
+                        meta_data[obj_idx]['customerRating'] = source_meta[obj_name]['customerRating']                        
+                        meta_data[obj_idx]['brand'] = source_meta[obj_name]['brand']                        
+                        meta_data[obj_idx]['price'] = source_meta[obj_name]['price']
+                        if len(visual_meta[s_name][obj_idx]) > 0:                        
+                            meta_data[obj_idx]['type'] = visual_meta[s_name][obj_idx][0]   # Furniture
+                            meta_data[obj_idx]['materials'] = visual_meta[s_name][obj_idx][1]
+                            meta_data[obj_idx]['color'] = visual_meta[s_name][obj_idx][2]
 
         prev_asst_uttr = None
         prev_turn = None
@@ -172,9 +183,11 @@ def convert_json_to_flattened(
 
         for turn in dialog[FIELDNAME_DIALOG]:
             user_uttr = turn[FIELDNAME_USER_UTTR].replace("\n", " ").strip()
-            user_belief = turn[FIELDNAME_BELIEF_STATE]
-            asst_uttr = turn[FIELDNAME_ASST_UTTR].replace("\n", " ").strip()
-
+            # user_belief = turn[FIELDNAME_BELIEF_STATE]
+            if FIELDNAME_ASST_UTTR in turn:
+                asst_uttr = turn[FIELDNAME_ASST_UTTR].replace("\n", " ").strip()
+            else:
+                asst_uttr = ""
             # Format main input context
             context = ""
             if prev_asst_uttr:
@@ -195,14 +208,6 @@ def convert_json_to_flattened(
             prev_asst_uttr = asst_uttr
             prev_turn = turn
 
-            # Add multimodal contexts -- user shouldn't have access to ground-truth
-            """
-            if use_multimodal_contexts:
-                visual_objects = turn[FIELDNAME_BELIEF_STATE]['act_attributes']['objects']
-                context += ' ' + represent_visual_objects(visual_objects)
-            """
-
-            # Concat with previous contexts
             lst_context.append(context)
             context = " ".join(lst_context[-len_context:])
 
@@ -210,38 +215,38 @@ def convert_json_to_flattened(
             if use_belief_states:
                 belief_state = []
                 # for bs_per_frame in user_belief:
-                str_belief_state_per_frame = (
-                    "{act} {SEP_1_TOKEN} [ {slot_values} ] ({request_slots}) < {objects} >".format(
-                        act=user_belief["act"].strip(),
-                        SEP_1_TOKEN = SEP_1_TOKEN,
-                        slot_values=", ".join(
-                            [
-                                f"{k.strip()} = {str(v).strip()}"
-                                for k, v in user_belief["act_attributes"][
-                                    "slot_values"
-                                ].items()
-                            ]
-                        ),
-                        request_slots=", ".join(
-                            user_belief["act_attributes"]["request_slots"]
-                        ),
-                        objects=", ".join(
-                            [str(o) for o in user_belief["act_attributes"]["objects"]]
-                        ),
-                    )
-                )
-                belief_state.append(str_belief_state_per_frame)
+                # str_belief_state_per_frame = (
+                #     "{act} {SEP_1_TOKEN} [ {slot_values} ] ({request_slots}) < {objects} >".format(
+                #         act=user_belief["act"].strip(),
+                #         SEP_1_TOKEN = SEP_1_TOKEN,
+                #         slot_values=", ".join(
+                #             [
+                #                 f"{k.strip()} = {str(v).strip()}"
+                #                 for k, v in user_belief["act_attributes"][
+                #                     "slot_values"
+                #                 ].items()
+                #             ]
+                #         ),
+                #         request_slots=", ".join(
+                #             user_belief["act_attributes"]["request_slots"]
+                #         ),
+                #         objects=", ".join(
+                #             [str(o) for o in user_belief["act_attributes"]["objects"]]
+                #         ),
+                #     )
+                # )
+                # belief_state.append(str_belief_state_per_frame)
 
                 # Track OOVs
-                if output_path_special_tokens != "":
-                    oov.add(user_belief["act"])
-                    for slot_name in user_belief["act_attributes"]["slot_values"]:
-                        oov.add(str(slot_name))
-                        # slot_name, slot_value = kv[0].strip(), kv[1].strip()
-                        # oov.add(slot_name)
-                        # oov.add(slot_value)
+                # if output_path_special_tokens != "":
+                #     oov.add(user_belief["act"])
+                #     for slot_name in user_belief["act_attributes"]["slot_values"]:
+                #         oov.add(str(slot_name))
+                #         # slot_name, slot_value = kv[0].strip(), kv[1].strip()
+                #         # oov.add(slot_name)
+                #         # oov.add(slot_value)
 
-                str_belief_state = " ".join(belief_state)
+                # str_belief_state = " ".join(belief_state)
 
                 # Format the main input
                 predict = TEMPLATE_PREDICT.format(
@@ -251,14 +256,14 @@ def convert_json_to_flattened(
                 predicts.append(predict)
 
                 # Format the main output
-                target = TEMPLATE_TARGET.format(
-                    CLS_TOKEN=CLS_TOKEN,
-                    belief_state=str_belief_state,
-                    SEP_2_TOKEN=SEP_2_TOKEN,
-                    response=asst_uttr,
-                    END_TOKEN=END_TOKEN,
-                )
-                targets.append(target)
+                # target = TEMPLATE_TARGET.format(
+                #     CLS_TOKEN=CLS_TOKEN,
+                #     belief_state=str_belief_state,
+                #     SEP_2_TOKEN=SEP_2_TOKEN,
+                #     response=asst_uttr,
+                #     END_TOKEN=END_TOKEN,
+                # )
+                # targets.append(target)
             else:
                 # Format the main input
                 predict = TEMPLATE_PREDICT_NOBELIEF.format(
@@ -273,24 +278,24 @@ def convert_json_to_flattened(
                     START_OF_RESPONSE=START_OF_RESPONSE,
                 )
                 targets.append(target)
-
+                
     # Create a directory if it does not exist
     directory = os.path.dirname(output_path_predict)
     if not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
 
-    directory = os.path.dirname(output_path_target)
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
+    # directory = os.path.dirname(output_path_target)
+    # if not os.path.exists(directory):
+    #     os.makedirs(directory, exist_ok=True)
 
     # Output into text files
     with open(output_path_predict, "w") as f_predict:
         X = "\n".join(predicts)
         f_predict.write(X)
 
-    with open(output_path_target, "w") as f_target:
-        Y = "\n".join(targets)
-        f_target.write(Y)
+    # with open(output_path_target, "w") as f_target:
+    #     Y = "\n".join(targets)
+    #     f_target.write(Y)
 
     if output_path_special_tokens != "":
         # Create a directory if it does not exist

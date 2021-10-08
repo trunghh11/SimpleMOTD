@@ -15,7 +15,7 @@ root directory of this source tree.
 """
 import argparse
 import json
-from gpt2_dst.utils.convert_BART_v3 import parse_flattened_results_from_file
+from gpt2_dst.utils.convert_BART_v4_1_only_values import parse_flattened_results_from_file
 from utils.evaluate_dst import evaluate_from_flat_list
 
 
