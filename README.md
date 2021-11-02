@@ -1,5 +1,5 @@
 # _DSTC10 Track3 SIMMC 2.0_
-**This work is a result of the cooperation of SungKyunKwan-University NLP Lab and LG Electronics**
+**This work is a result of the cooperation of SungKyunKwan-University NLP Lab and LG Electronics**__
 **Lab Home: https://nlplab-skku.github.io/** 
 
 ## Overview
