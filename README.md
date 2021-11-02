@@ -1,4 +1,4 @@
-# _DSTC10 Track3 SIMMC 2.0 (SKKU-NLP)_
+# _DSTC10 Track3 SIMMC 2.0 (SungKyunKwan University-NLP & LG Electronics)_
 
 ## Overview
 - This model is for DSTC10 Track3. Sub-Task 1 model is based on RoBERTa which has a powerful enocding ablity. Sub-Task 2~4 model is based on a pipeline of ResNet and BART.
